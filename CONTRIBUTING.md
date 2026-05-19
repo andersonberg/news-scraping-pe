@@ -15,11 +15,17 @@
 - Após alterar dependências em `pyproject.toml`, rode `uv lock` e commitar `uv.lock`.
 - Prefira `uv run <comando>` ou `make` em vez de ativar o venv manualmente.
 
+## Ritmo de entrega
+
+Siga o [docs/ROADMAP.md](docs/ROADMAP.md): **um passo por vez**, pausa para revisão, `make lint test`, teste manual e **commit curto** antes do próximo passo.
+
 ## Padrões de código
 
-- **Ruff** para lint e formatação (`make lint`).
-- **mypy** em modo strict para `src/news_scraping_pe`.
-- Testes com **pytest** em `tests/`.
+- **PEP 20:** simples é melhor que complexo; uma função = uma responsabilidade.
+- **Docstrings** em funções e métodos públicos.
+- **Logging** (`logging` stdlib): `INFO` no fluxo normal, `WARNING`/`ERROR` em falhas; evitar `print`.
+- **Ruff** + **mypy** (`make lint`).
+- **pytest** só para comportamento não trivial.
 - Não commitar `.env`, `config/searches.yaml` (dados locais) nem `data/articles.jsonl`.
 
 ## Scrapy
