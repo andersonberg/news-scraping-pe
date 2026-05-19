@@ -53,13 +53,18 @@ LOG_LEVEL=DEBUG uv run news-scraping-pe validate-config
 
 ---
 
-### Passo 3 — Persistência de URLs pendentes
+### Passo 3 — Persistência de URLs pendentes ✅
 
-**Entrega:** funções para **append** e **ler** `data/urls_pending.jsonl` (uma URL por linha JSON, campos mínimos: `url`, `job_id`, `discovered_via`).
-
-**Arquivos:** `news_scraping_pe/storage/urls.py` + testes.
+**Entrega:** `news_scraping_pe/storage/urls.py` — `append_pending_url`, `append_pending_urls`, `iter_pending_urls`, `read_pending_urls`.
 
 **Commit sugerido:** `feat(storage): leitura e escrita de urls pendentes`
+
+**Teste manual (Python):**
+```python
+from news_scraping_pe.storage.urls import append_pending_url, read_pending_urls
+append_pending_url({"url": "https://example.com/a", "job_id": "test__processo__ne10", "discovered_via": "manual"})
+print(read_pending_urls())
+```
 
 ---
 

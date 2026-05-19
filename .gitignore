@@ -51,6 +51,7 @@ httpcache/
 *.jl
 *.jsonl
 !data/*.example.jsonl
+!data/urls_pending.example.jsonl
 !config/*.example.*
 
 # Runtime data (coletas locais — não versionar)
