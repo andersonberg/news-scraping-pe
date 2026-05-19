@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Tooling
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.hypothesis/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment and secrets
+.env
+.env.local
+*.pem
+
+# Scrapy
+.scrapy/
+httpcache/
+*.jl
+*.jsonl
+!data/*.example.jsonl
+!config/*.example.*
+
+# Runtime data (coletas locais — não versionar)
+data/articles.jsonl
+data/urls_pending.jsonl
+data/raw/
+logs/
+*.log
+
+# Config local (copiar de searches.example.yaml)
+config/searches.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Playwright
+playwright-report/
+test-results/

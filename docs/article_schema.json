@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/news-scraping-pe/article.schema.json",
+  "title": "NewsArticle",
+  "description": "Registro de uma notícia coletada na fase de scraping (texto bruto para uso posterior em data science).",
+  "type": "object",
+  "required": [
+    "article_id",
+    "url",
+    "portal_id",
+    "title",
+    "published_at",
+    "raw_text",
+    "candidate_id",
+    "election_year",
+    "office",
+    "search_term_id",
+    "query_window_start",
+    "query_window_end",
+    "discovered_via",
+    "collected_at"
+  ],
+  "properties": {
+    "article_id": {
+      "type": "string",
+      "description": "Identificador estável (ex.: SHA-256 da URL normalizada)."
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL canônica do artigo."
+    },
+    "portal_id": {
+      "type": "string",
+      "enum": ["ne10", "jc", "diario_pe", "g1", "folha", "uol", "estadao", "r7", "other"],
+      "description": "Portal de origem."
+    },
+    "title": {
+      "type": "string",
+      "description": "Título da matéria."
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de publicação (ISO 8601, YYYY-MM-DD)."
+    },
+    "raw_text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Corpo da notícia em texto bruto (sem NLP nesta fase)."
+    },
+    "view_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Quantidade de visualizações exibida pelo portal, quando disponível. Campo opcional: omitir se não for possível extrair; o artigo deve ser persistido mesmo assim."
+    },
+    "view_count_raw": {
+      "type": "string",
+      "description": "Texto original do contador no HTML (ex.: \"1,2 mil visualizações\"), para auditoria da extração."
+    },
+    "view_count_source": {
+      "type": "string",
+      "enum": ["portal_display", "meta_tag", "structured_data", "api", "unknown"],
+      "description": "Origem do valor de view_count, quando presente."
+    },
+    "candidate_id": {
+      "type": "string",
+      "description": "Slug do candidato (ex.: lula_2022)."
+    },
+    "candidate_name": {
+      "type": "string",
+      "description": "Nome completo do candidato para referência humana."
+    },
+    "election_year": {
+      "type": "integer",
+      "enum": [2018, 2022]
+    },
+    "office": {
+      "type": "string",
+      "enum": ["presidente", "governador_pe"]
+    },
+    "search_term_id": {
+      "type": "string",
+      "description": "ID do termo usado na busca (ex.: processo, denuncia_je)."
+    },
+    "search_query": {
+      "type": "string",
+      "description": "String exata enviada ao mecanismo de busca."
+    },
+    "query_window_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "query_window_end": {
+      "type": "string",
+      "format": "date"
+    },
+    "discovered_via": {
+      "type": "string",
+      "enum": [
+        "ne10_spider",
+        "jc_spider",
+        "diario_pe_spider",
+        "serpapi",
+        "gdelt",
+        "g1_spider",
+        "folha_spider",
+        "uol_spider",
+        "estadao_spider",
+        "r7_spider",
+        "manual",
+        "other"
+      ]
+    },
+    "discovery_rank": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Posição no resultado de busca, quando aplicável."
+    },
+    "language": {
+      "type": "string",
+      "default": "pt-BR"
+    },
+    "extraction_method": {
+      "type": "string",
+      "enum": ["trafilatura", "portal_parser", "manual"],
+      "default": "trafilatura"
+    },
+    "http_status": {
+      "type": "integer",
+      "description": "Status HTTP na coleta do artigo."
+    },
+    "collected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp UTC da coleta (ISO 8601)."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observações (ex.: paywall, texto truncado, Wayback usado)."
+    }
+  },
+  "additionalProperties": false
+}

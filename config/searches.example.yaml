@@ -1,0 +1,225 @@
+# Copie para searches.yaml e ajuste conforme necessário.
+# Validação: docs/search_config_schema.json
+# Saída dos artigos: docs/article_schema.json
+
+version: "1.0"
+
+project:
+  name: news-scraping-pe
+  description: >
+    Varredura histórica única de notícias sobre ações judiciais contra
+    candidatos a Presidente (BR) e Governador (PE), eleições 2018 e 2022.
+
+# Famílias de termos (PDF confirmado). O pipeline monta:
+#   query = nome_do_candidato + keywords + extra_keywords
+search_terms:
+  - id: acao
+    keywords: [ação]
+    description: ação + nome do candidato
+
+  - id: processo
+    keywords: [processo]
+    description: processo + nome do candidato
+
+  - id: judiciario
+    keywords: [judiciário]
+    description: judiciário + nome do candidato
+
+  - id: judicial
+    keywords: [judicial]
+    description: judicial + nome do candidato
+
+  - id: investigacao
+    keywords: [investigação]
+    description: investigação + nome do candidato
+
+  - id: denuncia_je
+    keywords: [denúncia]
+    extra_keywords: [justiça eleitoral]
+    description: denúncia + candidato + justiça eleitoral
+
+# Tier 1 = spiders diretos obrigatórios
+# Tier 3 = fallback (desabilitados até avaliação de cobertura)
+portals:
+  - id: ne10
+    name: NE10
+    domain: ne10.uol.com.br
+    tier: 1
+    enabled: true
+    spider: ne10
+
+  - id: jc
+    name: Jornal do Commercio
+    domain: jconline.com.br
+    tier: 1
+    enabled: true
+    spider: jc
+
+  - id: diario_pe
+    name: Diário de Pernambuco
+    domain: diariodepernambuco.com.br
+    tier: 1
+    enabled: true
+    spider: diario_pe
+
+  - id: g1
+    name: G1
+    domain: g1.globo.com
+    tier: 3
+    enabled: false
+    spider: g1
+
+  - id: folha
+    name: Folha de S.Paulo
+    domain: folha.uol.com.br
+    tier: 3
+    enabled: false
+    spider: folha
+
+  - id: uol
+    name: UOL Notícias
+    domain: noticias.uol.com.br
+    tier: 3
+    enabled: false
+    spider: uol
+
+  - id: estadão
+    name: Estadão
+    domain: estadao.com.br
+    tier: 3
+    enabled: false
+    spider: estadao
+
+  - id: r7
+    name: R7
+    domain: r7.com
+    tier: 3
+    enabled: false
+    spider: r7
+
+# Candidatos e janelas (PDF WEBSCRAPING.pdf — confirmado)
+candidates:
+  # --- Federal: Presidente ---
+  - id: bolsonaro_2022
+    name: Jair Messias Bolsonaro
+    office: presidente
+    election_year: 2022
+    query_window:
+      start: "2022-08-19"
+      end: "2022-10-30"
+    search_name_variants:
+      - Jair Messias Bolsonaro
+      - Jair Bolsonaro
+
+  - id: lula_2022
+    name: Luiz Inácio Lula da Silva
+    office: presidente
+    election_year: 2022
+    query_window:
+      start: "2022-08-05"
+      end: "2022-10-30"
+    search_name_variants:
+      - Luiz Inácio Lula da Silva
+      - Lula
+
+  - id: bolsonaro_2018
+    name: Jair Messias Bolsonaro
+    office: presidente
+    election_year: 2018
+    query_window:
+      start: "2018-09-20"
+      end: "2018-10-28"
+    search_name_variants:
+      - Jair Messias Bolsonaro
+      - Jair Bolsonaro
+
+  - id: haddad_2018
+    name: Fernando Haddad
+    office: presidente
+    election_year: 2018
+    query_window:
+      start: "2018-10-24"
+      end: "2018-10-28"
+    search_name_variants:
+      - Fernando Haddad
+
+  # --- Estadual: Governador PE ---
+  - id: raquel_lyra_2022
+    name: Raquel Teixeira Lyra Lucena
+    office: governador_pe
+    election_year: 2022
+    query_window:
+      start: "2022-10-25"
+      end: "2022-10-30"
+    search_name_variants:
+      - Raquel Lyra
+      - Raquel Teixeira Lyra Lucena
+
+  - id: marilia_arraes_2022
+    name: Marília Valença Rocha Arraes De Alencar Pontes
+    office: governador_pe
+    election_year: 2022
+    query_window:
+      start: "2022-09-26"
+      end: "2022-10-30"
+    search_name_variants:
+      - Marília Arraes
+      - Marília Valença Rocha Arraes
+
+  - id: danilo_cabral_2022
+    name: Danilo Jorge De Barros Cabral
+    office: governador_pe
+    election_year: 2022
+    query_window:
+      start: "2022-09-25"
+      end: "2022-10-30"
+    search_name_variants:
+      - Danilo Cabral
+      - Danilo Jorge De Barros Cabral
+
+  - id: paulo_camara_2018
+    name: Paulo Henrique Saraiva Camara
+    office: governador_pe
+    election_year: 2018
+    query_window:
+      start: "2018-08-27"
+      end: "2018-10-07"
+    search_name_variants:
+      - Paulo Câmara
+      - Paulo Henrique Saraiva Camara
+
+# Estratégias de descoberta de URLs
+discovery:
+  serpapi:
+    enabled: true
+    engine: google_news
+    # Primeiro restringe aos domínios tier 1; depois amplia se necessário
+    prefer_site_restricted: true
+    max_results_per_query: 100
+
+  gdelt:
+    enabled: true
+    # Acionar consultas GDELT só se um candidato tiver menos que N artigos únicos
+    use_only_if_coverage_below: 5
+
+  national_fallback:
+    enabled: false
+    # Habilitar tier-3 portals quando média de artigos/candidato < este valor
+    min_articles_per_candidate: 10
+
+output:
+  format: jsonl
+  articles_path: data/articles.jsonl
+  urls_pending_path: data/urls_pending.jsonl
+
+# ---------------------------------------------------------------------------
+# Exemplos de queries expandidas (geradas pelo pipeline a partir deste arquivo)
+# ---------------------------------------------------------------------------
+# Candidato: lula_2022 | Termo: processo | Portal: ne10 | Janela: 2022-08-05..2022-10-30
+#   Google News: "Luiz Inácio Lula da Silva" processo site:ne10.uol.com.br after:2022-08-05 before:2022-10-31
+#
+# Candidato: marilia_arraes_2022 | Termo: denuncia_je | Portal: jc
+#   "Marília Arraes" denúncia "justiça eleitoral" site:jconline.com.br after:2022-09-26 before:2022-10-31
+#
+# Total de combinações base: 8 candidatos × 6 termos = 48 jobs de descoberta
+# (multiplicado por variantes de nome e portais conforme política de discovery)
