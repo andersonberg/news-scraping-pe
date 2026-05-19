@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
+import logging
 from pathlib import Path
 
 from news_scraping_pe.config.loader import (
@@ -13,39 +13,62 @@ from news_scraping_pe.config.loader import (
     validate_search_config,
 )
 from news_scraping_pe.config.paths import default_config_path, repo_root
+from news_scraping_pe.log import configure_logging, get_logger
+
+logger = get_logger(__name__)
+
+
+def _resolve_config_path(config_arg: str | None) -> Path:
+    """Retorna o caminho do arquivo de configuração a partir do argumento CLI."""
+    return Path(config_arg) if config_arg else default_config_path()
 
 
 def _cmd_validate_config(args: argparse.Namespace) -> int:
-    path = Path(args.config) if args.config else default_config_path()
+    path = _resolve_config_path(args.config)
     if not path.exists():
-        print(f"Arquivo não encontrado: {path}", file=sys.stderr)
-        print("Copie config/searches.example.yaml → config/searches.yaml", file=sys.stderr)
+        logger.error("Arquivo não encontrado: %s", path)
+        logger.info("Copie config/searches.example.yaml → config/searches.yaml")
         return 1
+
+    logger.info("Validando configuração: %s", path)
     validate_search_config(path)
-    print(f"OK: {path}")
+    logger.info("Configuração válida: %s", path)
     return 0
 
 
 def _cmd_expand_queries(args: argparse.Namespace) -> int:
-    path = Path(args.config) if args.config else default_config_path()
+    path = _resolve_config_path(args.config)
     if not path.exists():
-        print(f"Arquivo não encontrado: {path}", file=sys.stderr)
+        logger.error("Arquivo não encontrado: %s", path)
         return 1
+
+    logger.info("Carregando configuração: %s", path)
     config = load_search_config(path)
     jobs = expand_query_jobs(config)
+
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
+    logger.info("Gravando %d jobs em %s", len(jobs), out)
+
     with out.open("w", encoding="utf-8") as fh:
         for job in jobs:
             fh.write(json.dumps(job, ensure_ascii=False) + "\n")
-    print(f"{len(jobs)} jobs → {out}")
+
+    logger.info("Expansão concluída: %d jobs → %s", len(jobs), out)
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Monta o parser de argumentos da CLI."""
     parser = argparse.ArgumentParser(
         prog="news-scraping-pe",
         description="Pipeline de coleta de notícias eleitorais (PE / BR)",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Log em nível DEBUG",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -67,8 +90,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Ponto de entrada da CLI; configura logging antes de executar o subcomando."""
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    level = logging.DEBUG if args.verbose else None
+    configure_logging(level=level)
+
+    logger.debug("Executando comando: %s", args.command)
     return int(args.func(args))
 
 
