@@ -71,3 +71,34 @@ def test_validate_rejects_invalid_json_line(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="JSON inválido"):
         list(iter_pending_urls(path=target))
+
+
+def test_append_skips_duplicate_urls(tmp_path: Path) -> None:
+    target = tmp_path / "urls_pending.jsonl"
+    base = _sample_record()
+    variant = PendingUrl(
+        url=base["url"] + "?utm_source=newsletter#topo",
+        job_id="outro_job",
+        discovered_via="serpapi",
+    )
+
+    first_write = append_pending_urls([base], path=target)
+    second_write = append_pending_urls([variant], path=target)
+
+    assert first_write == 1
+    assert second_write == 0
+    assert len(read_pending_urls(path=target)) == 1
+
+
+def test_append_normalizes_url_on_write(tmp_path: Path) -> None:
+    target = tmp_path / "urls_pending.jsonl"
+    record = PendingUrl(
+        url="https://NE10.uol.com.br/Artigo/?utm_campaign=x",
+        job_id="j1",
+        discovered_via="manual",
+    )
+
+    append_pending_url(record, path=target)
+    stored = read_pending_urls(path=target)[0]
+
+    assert stored["url"] == "https://ne10.uol.com.br/Artigo"

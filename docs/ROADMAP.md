@@ -68,13 +68,13 @@ print(read_pending_urls())
 
 ---
 
-### Passo 4 — Deduplicação de URLs
+### Passo 4 — Deduplicação de URLs ✅
 
-**Entrega:** função que normaliza URL (strip fragment/query tracking) e filtra duplicatas ao gravar no pool.
-
-**Arquivos:** `news_scraping_pe/storage/dedup.py` + testes.
+**Entrega:** `storage/dedup.py` (`normalize_url`, `filter_unique_pending_urls`); `append_pending_urls` ignora duplicatas.
 
 **Commit sugerido:** `feat(storage): deduplicação de URLs`
+
+**Teste manual:** gravar a mesma URL duas vezes (com `utm_*` diferente) e conferir uma linha em `data/urls_pending.jsonl`.
 
 ---
 
