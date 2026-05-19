@@ -21,3 +21,12 @@ def default_config_path() -> Path:
 
 def schema_path(name: str) -> Path:
     return repo_root() / "docs" / name
+
+
+def default_urls_pending_path() -> Path:
+    """Caminho do arquivo JSONL de URLs aguardando extração."""
+    env = os.getenv("URLS_PENDING_PATH")
+    if env:
+        p = Path(env)
+        return p if p.is_absolute() else repo_root() / p
+    return repo_root() / "data" / "urls_pending.jsonl"
