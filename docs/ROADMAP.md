@@ -78,15 +78,13 @@ print(read_pending_urls())
 
 ---
 
-### Passo 5 — Cliente SerpAPI (uma query por vez)
+### Passo 5 — Cliente SerpAPI (uma query por vez) ✅
 
-**Entrega:** `discovery/serpapi.py` — dado um job do JSONL expandido, retorna lista de URLs; lê `SERPAPI_API_KEY` do ambiente; logs de request/erro.
-
-**Arquivos:** 1 módulo + testes com `httpx` mockado (sem chamada real na CI).
+**Entrega:** `discovery/serpapi.py` — `discover_urls_for_job`, `build_serpapi_params`, `extract_urls_from_response`.
 
 **Commit sugerido:** `feat(discovery): cliente SerpAPI para descoberta de URLs`
 
-**Teste manual:** 1 query real contra SerpAPI; conferir URLs no log ou arquivo temporário.
+**Teste manual:** ver sequência de comandos no README ou ao final do passo 5 na conversa.
 
 ---
 
