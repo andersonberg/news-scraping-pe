@@ -13,6 +13,7 @@ from news_scraping_pe.config.loader import (
     validate_search_config,
 )
 from news_scraping_pe.config.paths import default_config_path, repo_root
+from news_scraping_pe.env import load_project_dotenv
 from news_scraping_pe.log import configure_logging, get_logger
 
 logger = get_logger(__name__)
@@ -94,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    load_project_dotenv()
     level = logging.DEBUG if args.verbose else None
     configure_logging(level=level)
 
