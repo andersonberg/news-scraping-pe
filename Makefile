@@ -1,4 +1,4 @@
-.PHONY: sync sync-all lint format test validate-config expand-queries discover-serpapi clean
+.PHONY: sync sync-all lint format test validate-config expand-queries discover-serpapi fetch-articles clean
 
 # Instala dependências (inclui grupo dev) e o pacote em modo editável
 sync:
@@ -28,6 +28,9 @@ expand-queries:
 
 discover-serpapi:
 	uv run news-scraping-pe discover-serpapi --limit 1
+
+fetch-articles:
+	uv run news-scraping-pe fetch-articles --limit 3
 
 clean:
 	rm -rf build dist .pytest_cache .mypy_cache .ruff_cache htmlcov

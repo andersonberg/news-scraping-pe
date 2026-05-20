@@ -86,6 +86,11 @@ def extract_raw_text_from_html(html: str, url: str) -> str | None:
     return cleaned
 
 
+def create_http_client() -> httpx.Client:
+    """Cria cliente HTTP padrão para extração de artigos."""
+    return httpx.Client(headers=_DEFAULT_HEADERS, follow_redirects=True)
+
+
 def fetch_raw_text(
     url: str,
     *,
@@ -104,11 +109,7 @@ def fetch_raw_text(
         Texto da notícia ou ``None`` se download/extração falhar.
     """
     owns_client = client is None
-    http_client = (
-        client
-        if client is not None
-        else httpx.Client(headers=_DEFAULT_HEADERS, follow_redirects=True)
-    )
+    http_client = client if client is not None else create_http_client()
 
     try:
         html = fetch_html(url, http_client, timeout=timeout)

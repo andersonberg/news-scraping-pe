@@ -21,3 +21,10 @@ def test_parser_has_discover_serpapi() -> None:
     assert args.command == "discover-serpapi"
     assert args.job_id == "lula_2022__processo__ne10"
     assert args.limit == 1
+
+
+def test_parser_has_fetch_articles() -> None:
+    parser = build_parser()
+    args = parser.parse_args(["fetch-articles", "--limit", "2"])
+    assert args.command == "fetch-articles"
+    assert args.limit == 2

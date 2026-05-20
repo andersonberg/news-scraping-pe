@@ -1,6 +1,11 @@
 """Descoberta de URLs em fontes externas."""
 
-from news_scraping_pe.discovery.jobs import iter_jobs_from_jsonl, select_jobs
+from news_scraping_pe.discovery.jobs import (
+    iter_jobs_from_jsonl,
+    load_jobs_index,
+    parse_job_id,
+    select_jobs,
+)
 from news_scraping_pe.discovery.serpapi import (
     SerpApiError,
     build_serpapi_params,
@@ -21,6 +26,8 @@ __all__ = [
     "discover_urls_for_job",
     "extract_urls_from_response",
     "iter_jobs_from_jsonl",
+    "load_jobs_index",
+    "parse_job_id",
     "read_api_key",
     "select_jobs",
 ]
