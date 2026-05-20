@@ -118,11 +118,13 @@ print(read_pending_urls())
 
 ---
 
-### Passo 9 — Pipeline “URL pendente → artigo”
+### Passo 9 — Pipeline “URL pendente → artigo” ✅
 
-**Entrega:** CLI `fetch-articles` que lê `urls_pending`, chama passo 7, grava passo 8; metadados do job propagados.
+**Entrega:** CLI `fetch-articles` + `extraction/fetch_runner.py` (trafilatura → `articles.jsonl`).
 
 **Commit sugerido:** `feat(cli): comando fetch-articles`
+
+**Teste manual:** ver comandos ao final da implementação (passo 9).
 
 ---
 

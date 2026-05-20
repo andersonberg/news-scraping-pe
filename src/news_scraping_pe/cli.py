@@ -13,15 +13,18 @@ from news_scraping_pe.config.loader import (
     validate_search_config,
 )
 from news_scraping_pe.config.paths import (
+    default_articles_output_path,
     default_config_path,
     default_queries_expanded_path,
     default_urls_pending_path,
     repo_root,
 )
-from news_scraping_pe.discovery.jobs import iter_jobs_from_jsonl, select_jobs
+from news_scraping_pe.discovery.jobs import iter_jobs_from_jsonl, load_jobs_index, select_jobs
 from news_scraping_pe.discovery.serpapi_runner import discover_and_store_jobs
 from news_scraping_pe.env import load_project_dotenv
+from news_scraping_pe.extraction.fetch_runner import fetch_and_store_pending_urls
 from news_scraping_pe.log import configure_logging, get_logger
+from news_scraping_pe.storage.urls import iter_pending_urls, select_pending_urls
 
 logger = get_logger(__name__)
 
@@ -98,6 +101,49 @@ def _cmd_discover_serpapi(args: argparse.Namespace) -> int:
     return 1 if stats.jobs_failed and stats.urls_stored == 0 else 0
 
 
+def _cmd_fetch_articles(args: argparse.Namespace) -> int:
+    pending_path = Path(args.urls_input)
+    jobs_path = Path(args.jobs)
+    articles_path = Path(args.articles_output)
+
+    try:
+        jobs_index = load_jobs_index(jobs_path)
+        pending = select_pending_urls(
+            iter_pending_urls(pending_path),
+            job_id=args.job_id,
+            candidate_id=args.candidate_id,
+            portal_id=args.portal_id,
+            limit=args.limit,
+        )
+    except (FileNotFoundError, ValueError):
+        logger.exception("Falha ao preparar fetch-articles")
+        return 1
+
+    if not pending:
+        logger.warning("Nenhuma URL pendente selecionada")
+        return 1
+
+    stats = fetch_and_store_pending_urls(
+        pending,
+        jobs_index,
+        articles_path=articles_path,
+    )
+    logger.info(
+        "Resumo: %d URL(s) processada(s), %d falha(s), %d artigo(s) gravado(s) em %s",
+        stats.urls_processed,
+        stats.urls_failed,
+        stats.articles_stored,
+        articles_path,
+    )
+
+    if stats.urls_missing_job:
+        logger.warning("%d URL(s) sem job correspondente no índice", stats.urls_missing_job)
+
+    if stats.articles_stored == 0:
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Monta o parser de argumentos da CLI."""
     parser = argparse.ArgumentParser(
@@ -152,6 +198,39 @@ def build_parser() -> argparse.ArgumentParser:
         help="Máximo de jobs a processar após filtros",
     )
     p_discover.set_defaults(func=_cmd_discover_serpapi)
+
+    p_fetch = sub.add_parser(
+        "fetch-articles",
+        help="Extrai texto de URLs pendentes e grava em articles.jsonl",
+    )
+    p_fetch.add_argument(
+        "--urls-input",
+        type=str,
+        default=str(default_urls_pending_path()),
+        help="JSONL de URLs pendentes",
+    )
+    p_fetch.add_argument(
+        "--jobs",
+        type=str,
+        default=str(default_queries_expanded_path()),
+        help="JSONL de jobs expandidos (metadados por job_id)",
+    )
+    p_fetch.add_argument(
+        "--articles-output",
+        type=str,
+        default=str(default_articles_output_path()),
+        help="Saída de artigos coletados",
+    )
+    p_fetch.add_argument("--job-id", type=str, help="Processar só URLs deste job_id")
+    p_fetch.add_argument("--candidate-id", type=str, help="Filtrar por candidato")
+    p_fetch.add_argument("--portal-id", type=str, help="Filtrar por portal")
+    p_fetch.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Máximo de URLs a processar após filtros",
+    )
+    p_fetch.set_defaults(func=_cmd_fetch_articles)
 
     return parser
 

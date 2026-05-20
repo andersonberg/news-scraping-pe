@@ -91,3 +91,44 @@ def select_jobs(
 
     logger.info("Selecionados %d job(s) para processamento", len(selected))
     return selected
+
+
+def parse_job_id(job_id: str) -> tuple[str, str, str]:
+    """
+    Divide ``job_id`` no formato ``candidato__termo__portal``.
+
+    Returns:
+        Tupla ``(candidate_id, search_term_id, portal_id)``.
+
+    Raises:
+        ValueError: Se o formato for inválido.
+    """
+    parts = job_id.split("__")
+    if len(parts) != 3:
+        msg = f"job_id inválido (esperado candidato__termo__portal): {job_id}"
+        raise ValueError(msg)
+    return parts[0], parts[1], parts[2]
+
+
+def load_jobs_index(path: Path) -> dict[str, dict[str, Any]]:
+    """
+    Carrega jobs expandidos indexados por ``job_id``.
+
+    Raises:
+        FileNotFoundError: Se o arquivo não existir.
+        ValueError: Se houver JSON inválido ou ``job_id`` duplicado.
+    """
+    index: dict[str, dict[str, Any]] = {}
+
+    for job in iter_jobs_from_jsonl(path):
+        job_key = job.get("job_id")
+        if not isinstance(job_key, str) or not job_key.strip():
+            msg = "Job sem job_id válido no arquivo de jobs expandidos"
+            raise ValueError(msg)
+        if job_key in index:
+            msg = f"job_id duplicado no índice: {job_key}"
+            raise ValueError(msg)
+        index[job_key] = job
+
+    logger.info("Índice de jobs carregado: %d entradas de %s", len(index), path)
+    return index

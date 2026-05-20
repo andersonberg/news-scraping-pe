@@ -161,3 +161,63 @@ def iter_pending_urls(path: Path | None = None) -> Iterator[PendingUrl]:
 def read_pending_urls(path: Path | None = None) -> list[PendingUrl]:
     """Carrega todas as URLs pendentes em uma lista (conveniência sobre ``iter_pending_urls``)."""
     return list(iter_pending_urls(path=path))
+
+
+def pending_url_matches_filters(
+    record: Mapping[str, object],
+    *,
+    job_id: str | None,
+    candidate_id: str | None,
+    portal_id: str | None,
+) -> bool:
+    """Verifica filtros em um registro de URL pendente."""
+    if job_id is not None and record.get("job_id") != job_id:
+        return False
+    if candidate_id is not None or portal_id is not None:
+        from news_scraping_pe.discovery.jobs import parse_job_id
+
+        try:
+            rec_candidate, _, rec_portal = parse_job_id(str(record["job_id"]))
+        except ValueError:
+            return False
+        if candidate_id is not None and rec_candidate != candidate_id:
+            return False
+        if portal_id is not None and rec_portal != portal_id:
+            return False
+    return True
+
+
+def select_pending_urls(
+    records: Iterable[PendingUrl | Mapping[str, object]],
+    *,
+    job_id: str | None = None,
+    candidate_id: str | None = None,
+    portal_id: str | None = None,
+    limit: int | None = None,
+) -> list[PendingUrl]:
+    """Filtra e limita URLs pendentes."""
+    selected: list[PendingUrl] = []
+
+    for record in records:
+        if not pending_url_matches_filters(
+            record,
+            job_id=job_id,
+            candidate_id=candidate_id,
+            portal_id=portal_id,
+        ):
+            continue
+        if isinstance(record, dict) and all(key in record for key in _REQUIRED_FIELDS):
+            selected.append(
+                PendingUrl(
+                    url=str(record["url"]),
+                    job_id=str(record["job_id"]),
+                    discovered_via=str(record["discovered_via"]),
+                )
+            )
+        else:
+            selected.append(_validate_record(record))
+        if limit is not None and len(selected) >= limit:
+            break
+
+    logger.info("Selecionadas %d URL(s) pendente(s) para extração", len(selected))
+    return selected

@@ -38,12 +38,12 @@ search_terms:
     extra_keywords: [justiça eleitoral]
     description: denúncia + candidato + justiça eleitoral
 
-# Tier 1 = spiders diretos obrigatórios
-# Tier 3 = fallback (desabilitados até avaliação de cobertura)
+# Cada portal atende apenas o cargo indicado em ``offices`` (sem cruzamento).
 portals:
   - id: ne10
     name: NE10
     domain: ne10.uol.com.br
+    offices: [governador_pe]
     tier: 1
     enabled: true
     spider: ne10
@@ -51,6 +51,7 @@ portals:
   - id: jc
     name: Jornal do Commercio
     domain: jconline.com.br
+    offices: [governador_pe]
     tier: 1
     enabled: true
     spider: jc
@@ -58,6 +59,7 @@ portals:
   - id: diario_pe
     name: Diário de Pernambuco
     domain: diariodepernambuco.com.br
+    offices: [governador_pe]
     tier: 1
     enabled: true
     spider: diario_pe
@@ -65,36 +67,41 @@ portals:
   - id: g1
     name: G1
     domain: g1.globo.com
-    tier: 3
-    enabled: false
+    offices: [presidente]
+    tier: 2
+    enabled: true
     spider: g1
 
   - id: folha
     name: Folha de S.Paulo
     domain: folha.uol.com.br
-    tier: 3
-    enabled: false
+    offices: [presidente]
+    tier: 2
+    enabled: true
     spider: folha
 
   - id: uol
     name: UOL Notícias
     domain: noticias.uol.com.br
-    tier: 3
-    enabled: false
+    offices: [presidente]
+    tier: 2
+    enabled: true
     spider: uol
 
-  - id: estadão
+  - id: estadao
     name: Estadão
     domain: estadao.com.br
-    tier: 3
-    enabled: false
+    offices: [presidente]
+    tier: 2
+    enabled: true
     spider: estadao
 
   - id: r7
     name: R7
     domain: r7.com
-    tier: 3
-    enabled: false
+    offices: [presidente]
+    tier: 2
+    enabled: true
     spider: r7
 
 # Candidatos e janelas (PDF WEBSCRAPING.pdf — confirmado)

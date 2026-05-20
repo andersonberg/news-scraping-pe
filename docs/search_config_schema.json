@@ -43,12 +43,21 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "name", "domain", "tier"],
+        "required": ["id", "name", "domain", "tier", "offices"],
         "properties": {
           "id": { "type": "string" },
           "name": { "type": "string" },
           "domain": { "type": "string" },
           "tier": { "type": "integer", "enum": [1, 2, 3] },
+          "offices": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["presidente", "governador_pe"]
+            },
+            "minItems": 1,
+            "description": "Cargos atendidos por este portal (sem cruzar presidente em regional e vice-versa)."
+          },
           "enabled": { "type": "boolean", "default": true },
           "search_url_template": { "type": "string" },
           "spider": { "type": "string" }
