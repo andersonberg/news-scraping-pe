@@ -88,13 +88,13 @@ print(read_pending_urls())
 
 ---
 
-### Passo 6 — Orquestrador SerpAPI → urls pendentes
+### Passo 6 — Orquestrador SerpAPI → urls pendentes ✅
 
-**Entrega:** comando CLI `discover-serpapi` que lê N jobs (ou todos), chama passo 5, grava no pool (passos 3–4).
+**Entrega:** `discover-serpapi` + `discovery/jobs.py` + `discovery/serpapi_runner.py`.
 
 **Commit sugerido:** `feat(cli): comando discover-serpapi`
 
-**Teste manual:** rodar para 1 candidato × 1 termo × 1 portal regional.
+**Teste manual:** ver seção de comandos ao final da implementação (README ou conversa).
 
 ---
 
