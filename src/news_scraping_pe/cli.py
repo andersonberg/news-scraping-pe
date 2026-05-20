@@ -12,7 +12,14 @@ from news_scraping_pe.config.loader import (
     load_search_config,
     validate_search_config,
 )
-from news_scraping_pe.config.paths import default_config_path, repo_root
+from news_scraping_pe.config.paths import (
+    default_config_path,
+    default_queries_expanded_path,
+    default_urls_pending_path,
+    repo_root,
+)
+from news_scraping_pe.discovery.jobs import iter_jobs_from_jsonl, select_jobs
+from news_scraping_pe.discovery.serpapi_runner import discover_and_store_jobs
 from news_scraping_pe.env import load_project_dotenv
 from news_scraping_pe.log import configure_logging, get_logger
 
@@ -59,6 +66,38 @@ def _cmd_expand_queries(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_discover_serpapi(args: argparse.Namespace) -> int:
+    jobs_path = Path(args.jobs)
+    urls_path = Path(args.urls_output)
+
+    try:
+        all_jobs = iter_jobs_from_jsonl(jobs_path)
+        jobs = select_jobs(
+            all_jobs,
+            job_id=args.job_id,
+            candidate_id=args.candidate_id,
+            portal_id=args.portal_id,
+            limit=args.limit,
+        )
+    except (FileNotFoundError, ValueError):
+        logger.exception("Não foi possível carregar jobs de %s", jobs_path)
+        return 1
+
+    if not jobs:
+        logger.warning("Nenhum job selecionado com os filtros informados")
+        return 1
+
+    stats = discover_and_store_jobs(jobs, urls_path=urls_path)
+    logger.info(
+        "Resumo: %d job(s), %d falha(s), %d URL(s) gravada(s) em %s",
+        stats.jobs_processed,
+        stats.jobs_failed,
+        stats.urls_stored,
+        urls_path,
+    )
+    return 1 if stats.jobs_failed and stats.urls_stored == 0 else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Monta o parser de argumentos da CLI."""
     parser = argparse.ArgumentParser(
@@ -86,6 +125,33 @@ def build_parser() -> argparse.ArgumentParser:
         default=str(repo_root() / "data" / "queries.expanded.jsonl"),
     )
     p_expand.set_defaults(func=_cmd_expand_queries)
+
+    p_discover = sub.add_parser(
+        "discover-serpapi",
+        help="Descobre URLs via SerpAPI e grava em urls_pending.jsonl",
+    )
+    p_discover.add_argument(
+        "--jobs",
+        type=str,
+        default=str(default_queries_expanded_path()),
+        help="JSONL de jobs expandidos",
+    )
+    p_discover.add_argument(
+        "--urls-output",
+        type=str,
+        default=str(default_urls_pending_path()),
+        help="Saída de URLs pendentes",
+    )
+    p_discover.add_argument("--job-id", type=str, help="Processar apenas este job_id")
+    p_discover.add_argument("--candidate-id", type=str, help="Filtrar por candidato")
+    p_discover.add_argument("--portal-id", type=str, help="Filtrar por portal (ex.: ne10)")
+    p_discover.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Máximo de jobs a processar após filtros",
+    )
+    p_discover.set_defaults(func=_cmd_discover_serpapi)
 
     return parser
 
