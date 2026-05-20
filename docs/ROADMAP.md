@@ -98,13 +98,13 @@ print(read_pending_urls())
 
 ---
 
-### Passo 7 — Extração de texto (trafilatura)
+### Passo 7 — Extração de texto (trafilatura) ✅
 
-**Entrega:** `extraction/text.py` — função `fetch_raw_text(url) -> str | None` com timeout e logging.
+**Entrega:** `extraction/text.py` — `fetch_raw_text`, `fetch_html`, `extract_raw_text_from_html`.
 
 **Commit sugerido:** `feat(extraction): extração de texto com trafilatura`
 
-**Teste manual:** 2–3 URLs reais de matérias dos portais regionais.
+**Teste manual:** ver comandos ao final da implementação (passo 7).
 
 ---
 
