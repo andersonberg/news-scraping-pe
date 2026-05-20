@@ -108,11 +108,13 @@ print(read_pending_urls())
 
 ---
 
-### Passo 8 — Persistência de artigos JSONL
+### Passo 8 — Persistência de artigos JSONL ✅
 
-**Entrega:** `storage/articles.py` — validar campos obrigatórios do schema e append em `data/articles.jsonl`.
+**Entrega:** `storage/articles.py` — `validate_article`, `append_article(s)`, `build_article_id`, dedup por `article_id`.
 
 **Commit sugerido:** `feat(storage): grava artigos em JSONL`
+
+**Teste manual:** ver comandos ao final da implementação (passo 8).
 
 ---
 

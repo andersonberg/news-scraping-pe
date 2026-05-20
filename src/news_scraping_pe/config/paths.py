@@ -28,6 +28,15 @@ def default_queries_expanded_path() -> Path:
     return repo_root() / "data" / "queries.expanded.jsonl"
 
 
+def default_articles_output_path() -> Path:
+    """Caminho do JSONL de artigos coletados."""
+    env = os.getenv("ARTICLES_OUTPUT_PATH")
+    if env:
+        p = Path(env)
+        return p if p.is_absolute() else repo_root() / p
+    return repo_root() / "data" / "articles.jsonl"
+
+
 def default_urls_pending_path() -> Path:
     """Caminho do arquivo JSONL de URLs aguardando extração."""
     env = os.getenv("URLS_PENDING_PATH")
