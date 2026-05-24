@@ -1,105 +1,147 @@
 # news-scraping-pe
 
-Coleta histórica **única** de notícias em mídia aberta sobre ações judiciais contra candidatos a **Presidente da República** e **Governador de Pernambuco** (eleições **2018** e **2022**). Projeto de pesquisa acadêmica — não é um produto de monitoramento contínuo.
+Coleta histórica **única** de notícias em mídia aberta sobre ações judiciais contra candidatos a **Presidente da República** e **Governador de Pernambuco** (eleições **2018** e **2022**). Projeto de pesquisa acadêmica — não é monitoramento contínuo.
 
 ## Objetivo
 
-1. **Fase 1 (este repositório):** descobrir URLs e extrair **texto bruto** + metadados (incl. visualizações quando disponíveis).
-2. **Fase 2 (fora deste repo):** data science — correlação com pesquisas de intenção de voto.
+| Fase | Escopo |
+|------|--------|
+| **1 (este repositório)** | Descobrir URLs, extrair **texto bruto** e metadados (`view_count` opcional) |
+| **2 (fora deste repo)** | Data science — correlação com pesquisas de intenção de voto |
 
-## Fontes (prioridade)
+## Decisões de projeto (estado atual)
 
-| Tier | Fontes | Estratégia |
-|------|--------|------------|
-| 1 | NE10, Jornal do Commercio, Diário de PE | Spiders Scrapy diretos |
-| 2 | Ampla | SerpAPI, GDELT (complemento) |
-| 3 | G1, Folha, UOL, Estadão, R7 | Fallback se cobertura baixa |
+- **Escopo eleitoral:** 2018 e 2022 apenas (2014 fora do projeto).
+- **Varredura única** por combinação candidato + termo + portal; sem crawler contínuo.
+- **Portais compartilhados:** todos os portais habilitados em `searches.yaml` entram na expansão para **cada** candidato (`presidente` e `governador_pe`); o cargo vem do candidato, não do portal.
+- **Configuração central:** [`config/searches.yaml`](config/searches.example.yaml) — candidatos, termos, janelas, portais.
+- **Execução:** [`data/queries.expanded.jsonl`](data/queries.expanded.example.jsonl) — jobs gerados por `expand-queries` (**720** jobs com `searches.example.yaml`, 8 portais).
+- **Descoberta via SerpAPI** (Google News) + **extração** com trafilatura — **implementado**.
+- **Spiders Scrapy** por portal — planejados (passos 10–12 do [roadmap](docs/ROADMAP.md)).
+
+## Pipeline (SerpAPI + extração)
+
+```mermaid
+flowchart LR
+    YAML["config/searches.yaml"]
+    Expand["expand-queries"]
+    Jobs["data/queries.expanded.jsonl"]
+    Discover["discover-serpapi"]
+    Pending["data/urls_pending.jsonl"]
+    Fetch["fetch-articles"]
+    Articles["data/articles.jsonl"]
+
+    YAML --> Expand --> Jobs
+    Jobs --> Discover --> Pending
+    Pending --> Fetch
+    Jobs --> Fetch
+    Fetch --> Articles
+```
+
+Guia passo a passo com SerpAPI: **[docs/guia-serpapi.md](docs/guia-serpapi.md)**.
 
 ## Estrutura do repositório
 
 ```
 news-scraping-pe/
-├── config/              # Buscas (YAML) — ver searches.example.yaml
-├── docs/                # JSON Schemas (artigo, config)
-├── data/                # Saídas locais (gitignored exceto exemplos)
+├── config/
+│   ├── searches.example.yaml   # template versionado
+│   └── searches.yaml           # sua config local (gitignored)
+├── data/
+│   ├── queries.expanded.jsonl  # jobs (gitignored)
+│   ├── urls_pending.jsonl      # URLs descobertas (gitignored)
+│   └── articles.jsonl          # artigos extraídos (gitignored)
+├── docs/
+│   ├── guia-serpapi.md         # como rodar o fluxo SerpAPI
+│   ├── article_schema.json
+│   ├── search_config_schema.json
+│   └── ROADMAP.md
 ├── src/news_scraping_pe/
-│   ├── config/          # Carregamento e validação do YAML
-│   ├── discovery/       # SerpAPI, GDELT (a implementar)
-│   ├── extraction/      # Parsers de artigo / view_count (a implementar)
-│   └── scrapy/          # Projeto Scrapy (spiders, items, settings)
-├── scripts/             # Utilitários CLI
-└── tests/
+│   ├── cli.py                  # comandos da CLI
+│   ├── config/                 # loader do YAML
+│   ├── discovery/              # SerpAPI, jobs, orquestrador
+│   ├── extraction/             # trafilatura, fetch-articles
+│   ├── storage/                # urls pendentes, artigos, dedup
+│   ├── env.py                  # carrega .env por caminho explícito
+│   └── scrapy/                 # spiders (em desenvolvimento)
+├── tests/
+├── scrapy.cfg
+├── pyproject.toml
+└── uv.lock
 ```
 
 ## Pré-requisitos
 
-- [uv](https://docs.astral.sh/uv/) (gerenciador de pacotes e ambientes)
-- Python **3.11+** (o uv pode instalar automaticamente via `.python-version`)
+- [uv](https://docs.astral.sh/uv/)
+- Python **3.12** (ver [`.python-version`](.python-version))
+- Conta [SerpAPI](https://serpapi.com/) com créditos para Google News
 
-```bash
-# macOS / Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-## Configuração rápida
+## Configuração inicial
 
 ```bash
 git clone git@github.com:SEU_USUARIO/news-scraping-pe.git
 cd news-scraping-pe
 
-uv sync          # cria .venv, instala deps + pacote (grupo dev incluso)
-# opcional: source .venv/bin/activate
+uv sync
 
 cp .env.example .env
-# Edite .env com SERPAPI_API_KEY
+# Edite .env: SERPAPI_API_KEY=...
 
 cp config/searches.example.yaml config/searches.yaml
+# Revise candidatos, termos e portais conforme a pesquisa
 ```
 
-O lockfile [`uv.lock`](uv.lock) garante builds reproduzíveis — commitar junto com `pyproject.toml`.
+## Comandos da CLI
 
-## Uso (stubs — implementação em andamento)
+Todos os comandos carregam `.env` automaticamente e aceitam `-v` / `--verbose` para log `DEBUG`.
+
+| Comando | Descrição |
+|---------|-----------|
+| `validate-config` | Valida `searches.yaml` contra JSON Schema |
+| `expand-queries` | Gera `data/queries.expanded.jsonl` |
+| `discover-serpapi` | Consulta SerpAPI e grava `data/urls_pending.jsonl` |
+| `fetch-articles` | Baixa URLs pendentes, extrai texto, grava `data/articles.jsonl` |
+
+Exemplo mínimo (após configurar `.env`):
 
 ```bash
-# Validar config de buscas
 uv run news-scraping-pe validate-config
-
-# Expandir candidatos × termos → jobs (JSONL)
-uv run news-scraping-pe expand-queries -o data/queries.expanded.jsonl
-
-# Scrapy (na raiz do repo, quando spiders existirem)
-uv run scrapy list
-
-# Extra opcional (portais com JS pesado)
-uv sync --extra playwright
+uv run news-scraping-pe expand-queries
+uv run news-scraping-pe discover-serpapi --job-id lula_2022__processo__g1 --limit 1
+uv run news-scraping-pe fetch-articles --job-id lula_2022__processo__g1 --limit 5
 ```
 
-## Dados de saída
+Detalhes, filtros, custos e troubleshooting: **[docs/guia-serpapi.md](docs/guia-serpapi.md)**.
 
-Artigos em JSONL conforme [`docs/article_schema.json`](docs/article_schema.json). Exemplo: [`data/articles.example.jsonl`](data/articles.example.jsonl).
+## Arquivos de dados
 
-Campos obrigatórios: URL, texto bruto, candidato, janela de busca, etc. `view_count` é **opcional** — o artigo é salvo mesmo sem contador de visualizações.
+| Arquivo | Conteúdo |
+|---------|----------|
+| `queries.expanded.jsonl` | Um job por linha: `job_id`, `search_query`, `portal_id`, janela de datas, metadados |
+| `urls_pending.jsonl` | URLs descobertas: `url`, `job_id`, `discovered_via` |
+| `articles.jsonl` | Artigos finais conforme [`docs/article_schema.json`](docs/article_schema.json) |
+
+Exemplos versionados: `data/*.example.jsonl`.
 
 ## Desenvolvimento
 
 ```bash
 uv sync
-uv run pre-commit install
+uv run pre-commit install   # opcional
 make lint test
 ```
 
-Comandos úteis:
+| `make` | Ação |
+|--------|------|
+| `lint` | ruff + mypy |
+| `test` | pytest (51 testes) |
+| `validate-config` | atalho para validação |
+| `expand-queries` | atalho para expansão |
+| `discover-serpapi` | 1 job SerpAPI (teste) |
+| `fetch-articles` | 3 URLs (teste) |
 
-| Comando | Descrição |
-|---------|-----------|
-| `uv sync` | Instala/atualiza dependências conforme `uv.lock` |
-| `uv lock` | Atualiza o lockfile após mudar `pyproject.toml` |
-| `uv add httpx` | Adiciona dependência de runtime |
-| `uv add --group dev pytest-mock` | Adiciona dependência de desenvolvimento |
-| `uv run pytest` | Executa no ambiente do projeto sem ativar `.venv` |
-
-Ver [CONTRIBUTING.md](CONTRIBUTING.md).
+Ver [CONTRIBUTING.md](CONTRIBUTING.md) e [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Licença
 
-MIT — ver [LICENSE](LICENSE).
+MIT — [LICENSE](LICENSE).

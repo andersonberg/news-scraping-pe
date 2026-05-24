@@ -15,7 +15,7 @@ Este documento descreve como rodar o pipeline **implementado até aqui** usando 
 | Config local | `config/searches.yaml` (copiar de `searches.example.yaml`) |
 | Ambiente | `.env` com `SERPAPI_API_KEY` (copiar de `.env.example`) |
 
-**Custo:** cada job em `discover-serpapi` = **1 requisição** à SerpAPI. Com 354 jobs na config atual, rodar tudo de uma vez consome 354 créditos. Use `--limit` e `--job-id` para testes.
+**Custo:** cada job em `discover-serpapi` = **1 requisição** à SerpAPI. Com **720** jobs em `searches.example.yaml` (8 portais), rodar tudo de uma vez consome 720 créditos; configs locais com mais portais (ex.: 10 → **900** jobs) custam proporcionalmente mais. Use `--limit` e `--job-id` para testes.
 
 ---
 
@@ -27,16 +27,11 @@ Define o **desenho do estudo** (revisado com o cientista político):
 
 - `search_terms` — famílias de palavras (ação, processo, denúncia + justiça eleitoral, …)
 - `candidates` — quem, cargo (`presidente` ou `governador_pe`), ano, **janela de datas**, variantes do nome
-- `portals` — sites, cada um com `offices` indicando qual cargo atende
+- `portals` — sites de notícia (`id`, `domain`, `tier`, `spider`, …)
 
-**Regra importante (sem cruzamento):**
+**Expansão:** cada candidato habilitado é combinado com **todos** os portais habilitados (× termos × variantes de nome). O campo `office` no candidato (`presidente` ou `governador_pe`) identifica o cargo na eleição; não restringe quais portais entram no job.
 
-| `office` | Portais usados nas buscas |
-|----------|---------------------------|
-| `presidente` | G1, Folha, UOL, Estadão, R7 |
-| `governador_pe` | NE10, JC, Diário de PE |
-
-Presidente **não** é buscado em NE10/JC/Diário; governador **não** é buscado em G1/Folha/etc.
+Portais no exemplo versionado (`searches.example.yaml`): NE10, JC, Diário de PE, G1, Folha, UOL, Estadão, R7.
 
 A CLI **não lê** `searches.yaml` na descoberta diretamente. Primeiro você gera o JSONL expandido.
 
@@ -125,7 +120,7 @@ uv run news-scraping-pe -v validate-config
 uv run news-scraping-pe expand-queries -o data/queries.expanded.jsonl
 ```
 
-Com a config padrão atual: **354 jobs** (210 presidente × 5 nacionais + 144 governador × 3 regionais).
+Com `searches.example.yaml` (8 portais): **720 jobs** — (7 variantes de nome para presidente + 8 para governador PE) × 6 termos × 8 portais.
 
 Conferir:
 
@@ -169,7 +164,7 @@ uv run news-scraping-pe discover-serpapi \
 # Vários jobs (cuidado com créditos)
 uv run news-scraping-pe discover-serpapi --limit 10
 
-# Todos os 354 jobs (produção — planeje créditos SerpAPI)
+# Todos os jobs do JSONL (produção — planeje créditos SerpAPI; 720 no example, 900 com 10 portais)
 uv run news-scraping-pe discover-serpapi
 ```
 

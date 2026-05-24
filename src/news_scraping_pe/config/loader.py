@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -43,27 +42,14 @@ def _build_query_string(
     return " ".join(parts)
 
 
-def portal_matches_office(portal: Mapping[str, Any], office: str) -> bool:
-    """
-    Verifica se o portal atende ao cargo do candidato.
-
-    Portais declaram ``offices`` (ex.: ``presidente``, ``governador_pe``).
-    """
-    offices = portal.get("offices")
-    if not isinstance(offices, list):
-        return False
-    return office in offices
-
-
 def expand_query_jobs(config: dict[str, Any]) -> list[dict[str, Any]]:
-    """Gera um job por candidato × termo × portal compatível com o cargo e habilitado."""
+    """Gera um job por candidato × termo × variante de nome × portal habilitado."""
     jobs: list[dict[str, Any]] = []
     terms = config["search_terms"]
     candidates = [c for c in config["candidates"] if c.get("enabled", True)]
     portals = [p for p in config["portals"] if p.get("enabled", True)]
 
     for candidate in candidates:
-        office = str(candidate["office"])
         names: list[str] = candidate.get("search_name_variants") or [candidate["name"]]
         window = candidate["query_window"]
         for term in terms:
@@ -72,8 +58,6 @@ def expand_query_jobs(config: dict[str, Any]) -> list[dict[str, Any]]:
             for display_name in names:
                 query = _build_query_string(display_name, keywords, extra)
                 for portal in portals:
-                    if not portal_matches_office(portal, office):
-                        continue
                     job_id = f"{candidate['id']}__{term['id']}__{portal['id']}"
                     jobs.append(
                         {
