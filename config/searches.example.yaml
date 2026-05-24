@@ -38,12 +38,13 @@ search_terms:
     extra_keywords: [justiça eleitoral]
     description: denúncia + candidato + justiça eleitoral
 
-# Cada portal atende apenas o cargo indicado em ``offices`` (sem cruzamento).
+# Todos os portais habilitados entram na expansão para todos os candidatos.
+# O cargo (`presidente` / `governador_pe`) vem do candidato, não do portal.
 portals:
+  # --- Tier 1 (prioridade regional) ---
   - id: ne10
     name: NE10
     domain: ne10.uol.com.br
-    offices: [governador_pe]
     tier: 1
     enabled: true
     spider: ne10
@@ -51,7 +52,6 @@ portals:
   - id: jc
     name: Jornal do Commercio
     domain: jconline.com.br
-    offices: [governador_pe]
     tier: 1
     enabled: true
     spider: jc
@@ -59,15 +59,14 @@ portals:
   - id: diario_pe
     name: Diário de Pernambuco
     domain: diariodepernambuco.com.br
-    offices: [governador_pe]
     tier: 1
     enabled: true
     spider: diario_pe
 
+  # --- Tier 2 (prioridade nacional) ---
   - id: g1
     name: G1
     domain: g1.globo.com
-    offices: [presidente]
     tier: 2
     enabled: true
     spider: g1
@@ -75,7 +74,6 @@ portals:
   - id: folha
     name: Folha de S.Paulo
     domain: folha.uol.com.br
-    offices: [presidente]
     tier: 2
     enabled: true
     spider: folha
@@ -83,7 +81,6 @@ portals:
   - id: uol
     name: UOL Notícias
     domain: noticias.uol.com.br
-    offices: [presidente]
     tier: 2
     enabled: true
     spider: uol
@@ -91,7 +88,6 @@ portals:
   - id: estadao
     name: Estadão
     domain: estadao.com.br
-    offices: [presidente]
     tier: 2
     enabled: true
     spider: estadao
@@ -99,7 +95,6 @@ portals:
   - id: r7
     name: R7
     domain: r7.com
-    offices: [presidente]
     tier: 2
     enabled: true
     spider: r7
@@ -228,5 +223,5 @@ output:
 # Candidato: marilia_arraes_2022 | Termo: denuncia_je | Portal: jc
 #   "Marília Arraes" denúncia "justiça eleitoral" site:jconline.com.br after:2022-09-26 before:2022-10-31
 #
-# Total de combinações base: 8 candidatos × 6 termos = 48 jobs de descoberta
-# (multiplicado por variantes de nome e portais conforme política de discovery)
+# Jobs após expand-queries: 720 = (7 variantes presidente + 8 governador) × 6 termos × 8 portais
+# Reexecute: uv run news-scraping-pe expand-queries -o data/queries.expanded.jsonl
