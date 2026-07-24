@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +44,14 @@ def _build_query_string(
     return " ".join(parts)
 
 
+def _slugify_variant(name: str) -> str:
+    """Slug ASCII, seguro para uso como 4º segmento do job_id (nunca contém '__')."""
+    normalized = unicodedata.normalize("NFKD", name)
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_only.lower()).strip("-")
+    return slug or "sem-variante"
+
+
 def expand_query_jobs(config: dict[str, Any]) -> list[dict[str, Any]]:
     """Gera um job por candidato × termo × variante de nome × portal habilitado."""
     jobs: list[dict[str, Any]] = []
@@ -57,13 +67,15 @@ def expand_query_jobs(config: dict[str, Any]) -> list[dict[str, Any]]:
             extra: list[str] | None = term.get("extra_keywords")
             for display_name in names:
                 query = _build_query_string(display_name, keywords, extra)
+                variant_slug = _slugify_variant(display_name)
                 for portal in portals:
-                    job_id = f"{candidate['id']}__{term['id']}__{portal['id']}"
+                    job_id = f"{candidate['id']}__{term['id']}__{portal['id']}__{variant_slug}"
                     jobs.append(
                         {
                             "job_id": job_id,
                             "candidate_id": candidate["id"],
                             "candidate_name": candidate["name"],
+                            "search_name_variant": display_name,
                             "office": candidate["office"],
                             "election_year": candidate["election_year"],
                             "search_term_id": term["id"],
