@@ -19,6 +19,14 @@ def test_parse_job_id_invalid() -> None:
         parse_job_id("apenas_um_campo")
 
 
+def test_parse_job_id_with_variant() -> None:
+    assert parse_job_id("lula_2022__processo__ne10__lula") == (
+        "lula_2022",
+        "processo",
+        "ne10",
+    )
+
+
 def test_load_jobs_index(tmp_path: Path) -> None:
     path = tmp_path / "jobs.jsonl"
     path.write_text(
