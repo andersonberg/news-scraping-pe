@@ -9,3 +9,12 @@ class PendingUrl(TypedDict):
     url: str
     job_id: str
     discovered_via: str
+
+
+class JobAttempt(TypedDict):
+    """Registro de uma tentativa de consulta SerpAPI para um job."""
+
+    job_id: str
+    attempted_at: str
+    status: str
+    urls_found: int

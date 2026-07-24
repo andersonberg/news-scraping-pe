@@ -48,9 +48,12 @@ def job_matches_filters(
     job_id: str | None,
     candidate_id: str | None,
     portal_id: str | None,
+    job_ids: set[str] | None = None,
 ) -> bool:
     """Verifica se o job passa nos filtros informados (None = sem filtro)."""
     if job_id is not None and job.get("job_id") != job_id:
+        return False
+    if job_ids is not None and job.get("job_id") not in job_ids:
         return False
     if candidate_id is not None and job.get("candidate_id") != candidate_id:
         return False
@@ -63,6 +66,7 @@ def select_jobs(
     job_id: str | None = None,
     candidate_id: str | None = None,
     portal_id: str | None = None,
+    job_ids: set[str] | None = None,
     limit: int | None = None,
 ) -> list[dict[str, Any]]:
     """
@@ -73,6 +77,7 @@ def select_jobs(
         job_id: Mantém só este ``job_id`` (exato).
         candidate_id: Filtra por candidato.
         portal_id: Filtra por portal.
+        job_ids: Mantém apenas jobs cujo ``job_id`` esteja neste conjunto.
         limit: Máximo de jobs após filtros (``None`` = todos).
     """
     selected: list[dict[str, Any]] = []
@@ -83,6 +88,7 @@ def select_jobs(
             job_id=job_id,
             candidate_id=candidate_id,
             portal_id=portal_id,
+            job_ids=job_ids,
         ):
             continue
         selected.append(dict(job))

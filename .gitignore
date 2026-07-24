@@ -72,5 +72,9 @@ Thumbs.db
 playwright-report/
 test-results/
 
-# Cursor
+# Cursor/Claude
 .cursor/
+.claude/
+thoughts/
+
+articles/

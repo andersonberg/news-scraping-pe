@@ -40,6 +40,18 @@ def test_select_jobs_with_filters(tmp_path: Path) -> None:
     assert selected[0]["job_id"] == "j1"
 
 
+def test_select_jobs_with_job_ids_set(tmp_path: Path) -> None:
+    jobs = [
+        {"job_id": "j1", "candidate_id": "lula_2022", "portal_id": "ne10"},
+        {"job_id": "j2", "candidate_id": "lula_2022", "portal_id": "jc"},
+        {"job_id": "j3", "candidate_id": "bolsonaro_2022", "portal_id": "ne10"},
+    ]
+
+    selected = select_jobs(jobs, job_ids={"j1", "j3"})
+
+    assert {job["job_id"] for job in selected} == {"j1", "j3"}
+
+
 def test_iter_jobs_invalid_json(tmp_path: Path) -> None:
     target = tmp_path / "bad.jsonl"
     target.write_text("{invalid}\n", encoding="utf-8")
