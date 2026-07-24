@@ -101,16 +101,17 @@ def select_jobs(
 
 def parse_job_id(job_id: str) -> tuple[str, str, str]:
     """
-    Divide ``job_id`` no formato ``candidato__termo__portal``.
+    Divide ``job_id`` no formato ``candidato__termo__portal[__variante]``.
 
     Returns:
-        Tupla ``(candidate_id, search_term_id, portal_id)``.
+        Tupla ``(candidate_id, search_term_id, portal_id)``. Um eventual quarto
+        segmento (slug da variante de nome) é ignorado.
 
     Raises:
-        ValueError: Se o formato for inválido.
+        ValueError: Se houver menos de 3 segmentos.
     """
     parts = job_id.split("__")
-    if len(parts) != 3:
+    if len(parts) < 3:
         msg = f"job_id inválido (esperado candidato__termo__portal): {job_id}"
         raise ValueError(msg)
     return parts[0], parts[1], parts[2]
