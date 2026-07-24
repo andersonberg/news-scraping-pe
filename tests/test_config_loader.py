@@ -46,8 +46,10 @@ def test_expand_queries_all_enabled_portals(example_config_path: Path) -> None:
             assert (candidate_id, portal_id) in pairs
 
     job_ids = {j["job_id"] for j in jobs}
-    assert "bolsonaro_2022__processo__ne10" in job_ids
-    assert "marilia_arraes_2022__processo__g1" in job_ids
+    assert len(job_ids) == len(jobs)  # job_id agora único por variante
+    assert any(jid.startswith("bolsonaro_2022__processo__ne10__") for jid in job_ids)
+    assert any(jid.startswith("marilia_arraes_2022__processo__g1__") for jid in job_ids)
 
     assert jobs[0]["job_id"]
     assert "search_query" in jobs[0]
+    assert "search_name_variant" in jobs[0]
