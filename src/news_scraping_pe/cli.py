@@ -16,10 +16,12 @@ from news_scraping_pe.config.paths import (
     default_articles_output_path,
     default_config_path,
     default_queries_expanded_path,
+    default_serpapi_usage_log_path,
     default_urls_pending_path,
     repo_root,
 )
 from news_scraping_pe.discovery.jobs import iter_jobs_from_jsonl, load_jobs_index, select_jobs
+from news_scraping_pe.discovery.quota import compute_quota_status
 from news_scraping_pe.discovery.serpapi_runner import discover_and_store_jobs
 from news_scraping_pe.env import load_project_dotenv
 from news_scraping_pe.extraction.fetch_runner import fetch_and_store_pending_urls
@@ -69,17 +71,26 @@ def _cmd_expand_queries(args: argparse.Namespace) -> int:
     return 0
 
 
+def _read_job_ids_file(path: str) -> set[str]:
+    """Lê um arquivo com um ``job_id`` por linha (linhas em branco ignoradas)."""
+    lines = Path(path).read_text(encoding="utf-8").splitlines()
+    return {stripped for line in lines if (stripped := line.strip())}
+
+
 def _cmd_discover_serpapi(args: argparse.Namespace) -> int:
     jobs_path = Path(args.jobs)
     urls_path = Path(args.urls_output)
+    usage_log_path = Path(args.usage_log)
 
     try:
         all_jobs = iter_jobs_from_jsonl(jobs_path)
+        job_ids = _read_job_ids_file(args.job_ids_file) if args.job_ids_file else None
         jobs = select_jobs(
             all_jobs,
             job_id=args.job_id,
             candidate_id=args.candidate_id,
             portal_id=args.portal_id,
+            job_ids=job_ids,
             limit=args.limit,
         )
     except (FileNotFoundError, ValueError):
@@ -90,15 +101,64 @@ def _cmd_discover_serpapi(args: argparse.Namespace) -> int:
         logger.warning("Nenhum job selecionado com os filtros informados")
         return 1
 
-    stats = discover_and_store_jobs(jobs, urls_path=urls_path)
+    stats = discover_and_store_jobs(
+        jobs,
+        urls_path=urls_path,
+        usage_log_path=usage_log_path,
+        skip_attempted=not args.force,
+    )
     logger.info(
-        "Resumo: %d job(s), %d falha(s), %d URL(s) gravada(s) em %s",
+        "Resumo: %d job(s), %d falha(s), %d pulado(s) (já tentados), %d URL(s) gravada(s) em %s",
         stats.jobs_processed,
         stats.jobs_failed,
+        stats.jobs_skipped_already_attempted,
         stats.urls_stored,
         urls_path,
     )
     return 1 if stats.jobs_failed and stats.urls_stored == 0 else 0
+
+
+def _cmd_quota_status(args: argparse.Namespace) -> int:
+    jobs_path = Path(args.jobs)
+    usage_log_path = Path(args.usage_log)
+
+    try:
+        all_jobs = iter_jobs_from_jsonl(jobs_path)
+        status = compute_quota_status(
+            all_jobs,
+            usage_log_path=usage_log_path,
+            monthly_quota=args.monthly_quota,
+            candidate_id=args.candidate_id,
+            portal_id=args.portal_id,
+        )
+    except (FileNotFoundError, ValueError):
+        logger.exception("Não foi possível calcular status de cota a partir de %s", jobs_path)
+        return 1
+
+    logger.info(
+        "Jobs: %d total, %d já feitos (%d neste mês), %d restantes",
+        status.total_jobs,
+        status.done_all_time,
+        status.done_this_month,
+        status.remaining_total,
+    )
+    logger.info(
+        "Cota mensal: %d | usada neste mês: %d | disponível: %d",
+        args.monthly_quota,
+        status.done_this_month,
+        status.remaining_quota_this_month,
+    )
+    logger.info("Próximo lote sugerido: %d job(s)", len(status.next_batch_job_ids))
+
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(
+        "\n".join(status.next_batch_job_ids) + ("\n" if status.next_batch_job_ids else ""),
+        encoding="utf-8",
+    )
+    logger.info("Lote sugerido gravado em %s", out)
+
+    return 0
 
 
 def _cmd_fetch_articles(args: argparse.Namespace) -> int:
@@ -192,12 +252,61 @@ def build_parser() -> argparse.ArgumentParser:
     p_discover.add_argument("--candidate-id", type=str, help="Filtrar por candidato")
     p_discover.add_argument("--portal-id", type=str, help="Filtrar por portal (ex.: ne10)")
     p_discover.add_argument(
+        "--job-ids-file",
+        type=str,
+        help="Arquivo com um job_id por linha (ex.: saída de quota-status)",
+    )
+    p_discover.add_argument(
         "--limit",
         type=int,
         default=None,
         help="Máximo de jobs a processar após filtros",
     )
+    p_discover.add_argument(
+        "--usage-log",
+        type=str,
+        default=str(default_serpapi_usage_log_path()),
+        help="Log local de jobs já tentados (usado para pular repetições)",
+    )
+    p_discover.add_argument(
+        "--force",
+        action="store_true",
+        help="Reprocessa jobs mesmo se já tiverem sido tentados antes (gasta créditos de novo)",
+    )
     p_discover.set_defaults(func=_cmd_discover_serpapi)
+
+    p_quota = sub.add_parser(
+        "quota-status",
+        help="Mostra progresso de jobs SerpAPI e sugere o próximo lote a rodar",
+    )
+    p_quota.add_argument(
+        "--jobs",
+        type=str,
+        default=str(default_queries_expanded_path()),
+        help="JSONL de jobs expandidos",
+    )
+    p_quota.add_argument(
+        "--usage-log",
+        type=str,
+        default=str(default_serpapi_usage_log_path()),
+        help="Log local de jobs já tentados",
+    )
+    p_quota.add_argument(
+        "--monthly-quota",
+        type=int,
+        default=230,
+        help="Créditos disponíveis por mês (margem de segurança abaixo do limite da conta)",
+    )
+    p_quota.add_argument("--candidate-id", type=str, help="Restringir status a um candidato")
+    p_quota.add_argument("--portal-id", type=str, help="Restringir status a um portal")
+    p_quota.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default=str(repo_root() / "data" / "serpapi_next_batch.txt"),
+        help="Arquivo de saída com o próximo lote de job_ids (um por linha)",
+    )
+    p_quota.set_defaults(func=_cmd_quota_status)
 
     p_fetch = sub.add_parser(
         "fetch-articles",

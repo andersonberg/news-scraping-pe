@@ -171,10 +171,12 @@ uv run news-scraping-pe discover-serpapi
 **O que acontece internamente:**
 
 1. Lê jobs de `data/queries.expanded.jsonl` (com filtros).
-2. Para cada job, chama Google News via SerpAPI (`discovery/serpapi.py`).
-3. Extrai links de `news_results` / `organic_results`.
-4. Grava em `data/urls_pending.jsonl` com deduplicação (`storage/urls.py` + `storage/dedup.py`).
-5. Cada URL recebe `discovered_via: serpapi` e o `job_id` do job.
+2. Descarta jobs cujo `job_id` já apareça no log local `data/serpapi_usage_log.jsonl` (ver seção 6) — a menos que `--force` seja usado.
+3. Para cada job restante, chama Google News via SerpAPI (`discovery/serpapi.py`).
+4. Extrai links de `news_results` / `organic_results`.
+5. Grava em `data/urls_pending.jsonl` com deduplicação (`storage/urls.py` + `storage/dedup.py`).
+6. Cada URL recebe `discovered_via: serpapi` e o `job_id` do job.
+7. Registra a tentativa (sucesso ou erro) em `data/serpapi_usage_log.jsonl`, com timestamp.
 
 Conferir URLs gravadas:
 
@@ -183,7 +185,7 @@ wc -l data/urls_pending.jsonl
 head -n 3 data/urls_pending.jsonl | uv run python -m json.tool
 ```
 
-Rodar o mesmo job de novo deve **não** duplicar URLs (log: “Ignoradas N URL(s) duplicada(s)”).
+Rodar o mesmo job de novo **não gasta crédito de novo**: o `job_id` já está no log local, então o job é pulado (log: “Job já tentado anteriormente, pulando”). Para forçar uma nova consulta ao mesmo job (ex.: para pegar resultados mais recentes), use `--force`.
 
 ### Passo 5 — Extrair texto das matérias
 
@@ -283,7 +285,48 @@ Ajuste `--limit` conforme orçamento SerpAPI.
 
 ---
 
-## 6. Formato dos arquivos de saída
+## 6. Cota mensal e trabalho com múltiplas contas
+
+Se sua conta SerpAPI tem um limite mensal (ex.: 250 requisições no plano gratuito) e o backlog de jobs é maior que isso, use o comando `quota-status` para saber quantos créditos já foram usados neste mês e qual o próximo lote de jobs a rodar.
+
+### Como funciona o rastreio
+
+- Toda execução de `discover-serpapi` grava cada tentativa (sucesso ou erro) em `data/serpapi_usage_log.jsonl` — um arquivo **local, não versionado** (coberto pela regra `*.jsonl` do `.gitignore`), com `job_id`, `attempted_at`, `status` e `urls_found`.
+- Por padrão, `discover-serpapi` **pula automaticamente** qualquer `job_id` já presente nesse log, então rodar o mesmo comando várias vezes é seguro e não desperdiça créditos.
+- Como o log é local, ele só sabe o que **esta conta/máquina** já rodou. Ele não sabe o que outra pessoa da equipe já rodou com a própria conta.
+
+### `quota-status`: ver progresso e próximo lote
+
+```bash
+uv run news-scraping-pe quota-status --monthly-quota 230
+```
+
+Isso imprime:
+
+- total de jobs, quantos já foram feitos (no total e neste mês) e quantos restam;
+- créditos disponíveis neste mês (`--monthly-quota` menos os já usados no mês corrente);
+- o próximo lote sugerido de `job_id`s, respeitando a **ordem sequencial** em que aparecem em `queries.expanded.jsonl` (ou seja, termina os jobs de um candidato/portal antes de passar para o próximo).
+
+O lote sugerido também é gravado em `data/serpapi_next_batch.txt` (um `job_id` por linha; use `-o` para outro caminho). Para rodá-lo:
+
+```bash
+uv run news-scraping-pe discover-serpapi --job-ids-file data/serpapi_next_batch.txt
+```
+
+`--monthly-quota` deve ficar **um pouco abaixo** do limite real da conta (ex.: 230 em vez de 250) como margem de segurança. `--candidate-id`/`--portal-id` restringem o status a um subconjunto (útil quando cada pessoa está cobrindo um recorte diferente).
+
+### Coordenando entre contas da equipe
+
+Como o log de uso é local a cada máquina/conta, a divisão do trabalho entre pessoas é **manual**: combinem por chat/planilha quem roda qual fatia, para não gastar créditos de contas diferentes no mesmo `job_id`. Duas abordagens simples:
+
+1. **Por candidato/portal:** cada pessoa roda `quota-status --candidate-id X` (ou `--portal-id X`) para um recorte que ninguém mais está cobrindo naquele mês.
+2. **Por sequência:** como a ordem dos jobs em `queries.expanded.jsonl` é estável, quem terminar um lote avisa qual foi o último `job_id` processado; a próxima pessoa roda `quota-status` e pega a continuação (jobs após aquele ponto já aparecem como pendentes, já que o log local de quem rodou antes é o que decide isso — cada pessoa soma o que já viu no grupo).
+
+Em ambos os casos, `discover-serpapi --force` só deve ser usado deliberadamente (ex.: recoletar um job específico), já que ele ignora o skip automático.
+
+---
+
+## 7. Formato dos arquivos de saída
 
 ### `urls_pending.jsonl`
 
@@ -301,9 +344,22 @@ Campos obrigatórios definidos em [`article_schema.json`](article_schema.json). 
 
 `view_count` é opcional (ainda não extraído automaticamente nesta fase).
 
+### `serpapi_usage_log.jsonl` (local, não versionado)
+
+```json
+{
+  "job_id": "lula_2022__processo__g1",
+  "attempted_at": "2026-07-18T14:32:05.123456+00:00",
+  "status": "ok",
+  "urls_found": 4
+}
+```
+
+Ver seção 6 para como esse arquivo é usado (skip automático + `quota-status`).
+
 ---
 
-## 7. Problemas comuns
+## 8. Problemas comuns
 
 | Sintoma | Causa provável | O que fazer |
 |---------|----------------|-------------|
@@ -313,16 +369,17 @@ Campos obrigatórios definidos em [`article_schema.json`](article_schema.json). 
 | Muitas falhas em `fetch-articles` | URL é PDF, paywall ou página sem texto | Normal; veja logs `WARNING`; aumente `--limit` |
 | `urls_failed` alto | Sites bloqueiam bot ou HTML vazio | Esperado em parte; filtrar URLs manualmente depois |
 | `Job não encontrado no índice` | `job_id` em pending não existe no JSONL expandido | Regerar `expand-queries` ou limpar pending antigo |
-| Créditos SerpAPI acabam rápido | 1 crédito por job | Use `--limit`; processe por candidato/portal |
+| Créditos SerpAPI acabam rápido | 1 crédito por job | Use `--limit`; processe por candidato/portal; use `quota-status` para planejar por mês (seção 6) |
 
 ---
 
-## 8. Referência rápida da CLI
+## 9. Referência rápida da CLI
 
 ```bash
 uv run news-scraping-pe --help
 uv run news-scraping-pe discover-serpapi --help
 uv run news-scraping-pe fetch-articles --help
+uv run news-scraping-pe quota-status --help
 ```
 
 | Flag global | Efeito |
@@ -331,7 +388,7 @@ uv run news-scraping-pe fetch-articles --help
 
 ---
 
-## 9. Próximos passos no projeto
+## 10. Próximos passos no projeto
 
 - Spiders regionais (NE10, JC, Diário de PE) alimentarão o mesmo `urls_pending.jsonl` com `discovered_via: ne10_spider`, etc.
 - Spiders nacionais só se necessário além do SerpAPI.

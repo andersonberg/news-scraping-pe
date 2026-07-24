@@ -44,3 +44,12 @@ def default_urls_pending_path() -> Path:
         p = Path(env)
         return p if p.is_absolute() else repo_root() / p
     return repo_root() / "data" / "urls_pending.jsonl"
+
+
+def default_serpapi_usage_log_path() -> Path:
+    """Caminho do log local (não versionado) de jobs SerpAPI já tentados."""
+    env = os.getenv("SERPAPI_USAGE_LOG_PATH")
+    if env:
+        p = Path(env)
+        return p if p.is_absolute() else repo_root() / p
+    return repo_root() / "data" / "serpapi_usage_log.jsonl"
