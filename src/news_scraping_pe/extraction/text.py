@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 
 import httpx
 import trafilatura
@@ -25,6 +26,8 @@ _DEFAULT_HEADERS = {
     "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
     "Accept-Encoding": "gzip, deflate, br",
 }
+_DEFAULT_MAX_RETRIES = 3
+_DEFAULT_RETRY_BASE_DELAY_SECONDS = 1.0
 
 
 def _resolve_timeout(timeout: float | None) -> float:
@@ -37,28 +40,69 @@ def _resolve_timeout(timeout: float | None) -> float:
     return _DEFAULT_TIMEOUT_SECONDS
 
 
+def _resolve_max_retries(retries: int | None) -> int:
+    """Resolve tentativas explícitas ou variável ``FETCH_MAX_RETRIES``."""
+    if retries is not None:
+        return retries
+    env_value = os.getenv("FETCH_MAX_RETRIES", "").strip()
+    if env_value:
+        return int(env_value)
+    return _DEFAULT_MAX_RETRIES
+
+
+def _resolve_retry_base_delay(base: float | None) -> float:
+    """Resolve atraso base explícito ou variável ``FETCH_RETRY_BASE_DELAY_SECONDS``."""
+    if base is not None:
+        return base
+    env_value = os.getenv("FETCH_RETRY_BASE_DELAY_SECONDS", "").strip()
+    if env_value:
+        return float(env_value)
+    return _DEFAULT_RETRY_BASE_DELAY_SECONDS
+
+
 def fetch_html(
     url: str,
     client: httpx.Client,
     *,
     timeout: float | None = None,
+    max_retries: int | None = None,
+    retry_base_delay: float | None = None,
 ) -> str | None:
     """
-    Baixa o HTML de uma URL.
+    Baixa o HTML de uma URL, com novas tentativas em falhas transitórias.
 
     Returns:
         Conteúdo HTML ou ``None`` em falha HTTP/recuperável.
     """
     resolved_timeout = _resolve_timeout(timeout)
+    retries = _resolve_max_retries(max_retries)
+    base_delay = _resolve_retry_base_delay(retry_base_delay)
     logger.info("Baixando HTML: %s", url)
 
-    try:
-        response = client.get(url, timeout=resolved_timeout)
-        response.raise_for_status()
-    except httpx.HTTPError as exc:
-        logger.warning("Falha ao baixar %s: %s", url, exc)
-        return None
+    response: httpx.Response | None = None
+    for attempt in range(retries + 1):
+        try:
+            response = client.get(url, timeout=resolved_timeout)
+            response.raise_for_status()
+            break
+        except httpx.HTTPError as exc:
+            if attempt < retries:
+                delay = base_delay * (2**attempt)
+                logger.warning(
+                    "Falha ao baixar %s (tentativa %d/%d): %s; aguardando %.1fs",
+                    url,
+                    attempt + 1,
+                    retries + 1,
+                    exc,
+                    delay,
+                )
+                time.sleep(delay)
+                continue
+            logger.warning("Falha ao baixar %s após %d tentativas: %s", url, retries + 1, exc)
+            return None
 
+    if response is None:
+        return None
     if not response.text or not response.text.strip():
         logger.warning("Resposta vazia para %s", url)
         return None
