@@ -61,3 +61,35 @@ def test_fetch_and_store_pending_urls(tmp_path: Path) -> None:
     assert stats.articles_stored == 1
     assert stats.urls_missing_job == 0
     mock_append.assert_called_once()
+
+
+def test_fetch_and_store_pending_urls_unknown_portal_falls_back_to_other(
+    tmp_path: Path,
+) -> None:
+    articles_file = tmp_path / "articles.jsonl"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=_SAMPLE_HTML)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    job = _job()
+    job["portal_id"] = "cnn_internacional"  # portal ainda não cadastrado no schema
+
+    captured: list[dict[str, Any]] = []
+
+    def fake_append(records: Any, path: Path | None = None) -> int:
+        captured.extend(records)
+        return len(captured)
+
+    with patch(
+        "news_scraping_pe.extraction.fetch_runner.append_articles",
+        side_effect=fake_append,
+    ):
+        fetch_and_store_pending_urls(
+            [_pending()],
+            {"lula_2022__processo__ne10": job},
+            articles_path=articles_file,
+            client=client,
+        )
+
+    assert captured[0]["portal_id"] == "other"

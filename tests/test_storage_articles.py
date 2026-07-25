@@ -40,6 +40,12 @@ def test_build_article_id_is_stable() -> None:
     assert build_article_id(url) == build_article_id("https://ne10.uol.com.br/Artigo")
 
 
+def test_validate_article_accepts_cnn_portal() -> None:
+    article = _sample_article(portal_id="cnn")
+    validated = validate_article(article)
+    assert validated["portal_id"] == "cnn"
+
+
 def test_validate_article_accepts_optional_view_count() -> None:
     article = _sample_article(view_count=1200, view_count_source="portal_display")
     validated = validate_article(article)

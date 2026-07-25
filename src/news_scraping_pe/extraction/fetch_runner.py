@@ -17,7 +17,7 @@ from news_scraping_pe.extraction.text import (
     fetch_html,
 )
 from news_scraping_pe.log import get_logger
-from news_scraping_pe.storage.articles import append_articles, build_article_id
+from news_scraping_pe.storage.articles import append_articles, build_article_id, known_portal_ids
 from news_scraping_pe.storage.models import PendingUrl
 
 logger = get_logger(__name__)
@@ -43,11 +43,12 @@ def build_article_record(
 ) -> dict[str, Any]:
     """Monta um registro de artigo alinhado ao schema, a partir do job e da URL pendente."""
     collected_at = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    portal_id = job["portal_id"] if job["portal_id"] in known_portal_ids() else "other"
 
     record: dict[str, Any] = {
         "article_id": build_article_id(pending["url"]),
         "url": pending["url"],
-        "portal_id": job["portal_id"],
+        "portal_id": portal_id,
         "title": title,
         "published_at": published_at,
         "raw_text": raw_text,

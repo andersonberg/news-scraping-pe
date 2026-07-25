@@ -32,7 +32,7 @@
     },
     "portal_id": {
       "type": "string",
-      "enum": ["ne10", "jc", "diario_pe", "g1", "folha", "uol", "estadao", "r7", "other"],
+      "enum": ["ne10", "jc", "diario_pe", "g1", "folha", "uol", "estadao", "r7", "cnn", "other"],
       "description": "Portal de origem."
     },
     "title": {

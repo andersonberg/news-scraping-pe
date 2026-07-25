@@ -29,6 +29,11 @@ def _article_schema() -> dict[str, Any]:
     return _article_schema_cache
 
 
+def known_portal_ids() -> set[str]:
+    """Retorna os valores válidos de ``portal_id`` conforme o schema de artigos."""
+    return set(_article_schema()["properties"]["portal_id"]["enum"])
+
+
 def _resolve_path(path: Path | None) -> Path:
     """Retorna o caminho do arquivo JSONL de artigos."""
     return path if path is not None else default_articles_output_path()

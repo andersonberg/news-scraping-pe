@@ -19,6 +19,7 @@ def _job() -> dict[str, Any]:
 
 def test_discover_and_store_jobs(tmp_path: Path) -> None:
     urls_file = tmp_path / "urls_pending.jsonl"
+    usage_log_file = tmp_path / "usage_log.jsonl"
 
     def fake_discover(job: dict[str, Any], **kwargs: object) -> list[str]:
         return [f"https://ne10.uol.com.br/{job['job_id']}"]
@@ -36,6 +37,7 @@ def test_discover_and_store_jobs(tmp_path: Path) -> None:
         stats = discover_and_store_jobs(
             [_job()],
             urls_path=urls_file,
+            usage_log_path=usage_log_file,
             client=httpx.Client(),
         )
 
