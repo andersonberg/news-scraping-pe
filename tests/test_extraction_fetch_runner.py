@@ -4,7 +4,10 @@ from unittest.mock import patch
 
 import httpx
 
-from news_scraping_pe.extraction.fetch_runner import fetch_and_store_pending_urls
+from news_scraping_pe.extraction.fetch_runner import (
+    fetch_and_store_pending_urls,
+    interleave_by_host,
+)
 from news_scraping_pe.storage.models import PendingUrl
 
 _SAMPLE_HTML = """
@@ -123,3 +126,17 @@ def test_distinct_host_requests_are_not_spaced(tmp_path: Path, monkeypatch: Any)
         )
 
     assert sleeps == []
+
+
+def test_interleave_by_host_alternates_and_preserves_set() -> None:
+    a1 = PendingUrl(url="https://a.com/1", job_id="j", discovered_via="d")
+    a2 = PendingUrl(url="https://a.com/2", job_id="j", discovered_via="d")
+    b1 = PendingUrl(url="https://b.com/1", job_id="j", discovered_via="d")
+    out = interleave_by_host([a1, a2, b1])
+
+    assert out == [a1, b1, a2]
+    assert sorted(r["url"] for r in out) == [
+        "https://a.com/1",
+        "https://a.com/2",
+        "https://b.com/1",
+    ]
