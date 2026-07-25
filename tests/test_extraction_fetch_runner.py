@@ -61,3 +61,65 @@ def test_fetch_and_store_pending_urls(tmp_path: Path) -> None:
     assert stats.articles_stored == 1
     assert stats.urls_missing_job == 0
     mock_append.assert_called_once()
+
+
+def test_same_host_requests_are_spaced(tmp_path: Path, monkeypatch: Any) -> None:
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        "news_scraping_pe.extraction.fetch_runner.time.sleep",
+        lambda s: sleeps.append(s),
+    )
+    monkeypatch.setattr("news_scraping_pe.extraction.fetch_runner.monotonic", lambda: 0.0)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=_SAMPLE_HTML)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    p1 = _pending()
+    p2 = _pending()
+    p2["url"] = p1["url"] + "-2"
+
+    with patch(
+        "news_scraping_pe.extraction.fetch_runner.append_articles",
+        side_effect=lambda records, path=None: len(list(records)),
+    ):
+        fetch_and_store_pending_urls(
+            [p1, p2],
+            {"lula_2022__processo__ne10": _job()},
+            articles_path=tmp_path / "articles.jsonl",
+            client=client,
+            domain_delay=2.0,
+        )
+
+    assert sleeps == [2.0]
+
+
+def test_distinct_host_requests_are_not_spaced(tmp_path: Path, monkeypatch: Any) -> None:
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        "news_scraping_pe.extraction.fetch_runner.time.sleep",
+        lambda s: sleeps.append(s),
+    )
+    monkeypatch.setattr("news_scraping_pe.extraction.fetch_runner.monotonic", lambda: 0.0)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=_SAMPLE_HTML)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    p1 = _pending()
+    p2 = _pending()
+    p2["url"] = "https://jconline.com.br/politica/artigo"
+
+    with patch(
+        "news_scraping_pe.extraction.fetch_runner.append_articles",
+        side_effect=lambda records, path=None: len(list(records)),
+    ):
+        fetch_and_store_pending_urls(
+            [p1, p2],
+            {"lula_2022__processo__ne10": _job()},
+            articles_path=tmp_path / "articles.jsonl",
+            client=client,
+            domain_delay=2.0,
+        )
+
+    assert sleeps == []
