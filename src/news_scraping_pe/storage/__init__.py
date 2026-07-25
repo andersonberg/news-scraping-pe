@@ -8,7 +8,7 @@ from news_scraping_pe.storage.articles import (
     read_articles,
     validate_article,
 )
-from news_scraping_pe.storage.dedup import normalize_url, url_dedup_key
+from news_scraping_pe.storage.dedup import normalize_url, url_dedup_key, url_host
 from news_scraping_pe.storage.models import PendingUrl
 from news_scraping_pe.storage.urls import (
     append_pending_url,
@@ -31,4 +31,5 @@ __all__ = [
     "validate_article",
     "normalize_url",
     "url_dedup_key",
+    "url_host",
 ]

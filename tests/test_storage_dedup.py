@@ -2,6 +2,7 @@ from news_scraping_pe.storage.dedup import (
     filter_unique_pending_urls,
     normalize_url,
     url_dedup_key,
+    url_host,
 )
 from news_scraping_pe.storage.urls import PendingUrl
 
@@ -44,3 +45,12 @@ def test_filter_unique_pending_urls_against_existing_keys() -> None:
 
     assert unique == []
     assert skipped == 1
+
+
+def test_url_host_extracts_lowercased_netloc() -> None:
+    assert url_host("https://WWW.Example.COM/a/b?x=1") == "www.example.com"
+    assert url_host("http://ne10.uol.com.br/artigo") == "ne10.uol.com.br"
+
+
+def test_url_host_empty_for_unparseable() -> None:
+    assert url_host("not-a-url") == ""
