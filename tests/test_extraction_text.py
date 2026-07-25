@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from news_scraping_pe.extraction.text import (
+    create_http_client,
     extract_raw_text_from_html,
     fetch_html,
     fetch_raw_text,
@@ -27,6 +28,17 @@ def test_extract_raw_text_from_html(sample_html: str) -> None:
 
 def test_extract_returns_none_for_empty_html() -> None:
     assert extract_raw_text_from_html("<html></html>", "https://example.com") is None
+
+
+def test_create_http_client_sends_browser_identity() -> None:
+    client = create_http_client()
+    try:
+        assert "Mozilla/5.0" in client.headers["User-Agent"]
+        assert "text/html" in client.headers["Accept"]
+        assert client.headers["Accept-Language"].startswith("pt-BR")
+        assert client.follow_redirects is True
+    finally:
+        client.close()
 
 
 def test_fetch_html_success() -> None:
