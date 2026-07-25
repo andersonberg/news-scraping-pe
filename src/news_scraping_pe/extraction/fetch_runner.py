@@ -124,6 +124,21 @@ def fetch_article_from_pending(
     )
 
 
+def interleave_by_host(pending: list[PendingUrl]) -> list[PendingUrl]:
+    """Reordena para alternar hosts (round-robin), preservando conjunto e ordem por host."""
+    groups: dict[str, list[PendingUrl]] = {}
+    for record in pending:
+        groups.setdefault(url_host(record["url"]), []).append(record)
+
+    result: list[PendingUrl] = []
+    queues = list(groups.values())
+    while queues:
+        queues = [q for q in queues if q]
+        for q in queues:
+            result.append(q.pop(0))
+    return result
+
+
 def fetch_and_store_pending_urls(
     pending_urls: Iterable[PendingUrl],
     jobs_index: Mapping[str, Mapping[str, Any]],
@@ -148,9 +163,10 @@ def fetch_and_store_pending_urls(
     http_client = client if client is not None else create_http_client()
     delay = _resolve_domain_delay(domain_delay)
     last_hit: dict[str, float] = {}
+    pending_list = interleave_by_host(list(pending_urls))
 
     try:
-        for pending in pending_urls:
+        for pending in pending_list:
             urls_processed += 1
             job_id = pending["job_id"]
             job = jobs_index.get(job_id)
