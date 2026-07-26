@@ -71,6 +71,11 @@ def url_dedup_key(url: str) -> str:
     return normalize_url(url)
 
 
+def url_host(url: str) -> str:
+    """Extrai o host (netloc) em minúsculas; string vazia se não parseável."""
+    return urlparse(url.strip()).netloc.lower()
+
+
 def load_existing_url_keys(keys_source: Iterable[str]) -> set[str]:
     """Monta um conjunto de chaves já conhecidas a partir de URLs brutas ou normalizadas."""
     return {url_dedup_key(url) for url in keys_source}

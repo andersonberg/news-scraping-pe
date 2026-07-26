@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import os
+import time
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from time import monotonic
 from typing import Any
 
 import httpx
@@ -18,9 +21,22 @@ from news_scraping_pe.extraction.text import (
 )
 from news_scraping_pe.log import get_logger
 from news_scraping_pe.storage.articles import append_articles, build_article_id
+from news_scraping_pe.storage.dedup import url_host
 from news_scraping_pe.storage.models import PendingUrl
 
 logger = get_logger(__name__)
+
+_DEFAULT_DOMAIN_DELAY_SECONDS = 2.0
+
+
+def _resolve_domain_delay(delay: float | None) -> float:
+    """Resolve atraso explícito ou variável ``FETCH_DOMAIN_DELAY_SECONDS``."""
+    if delay is not None:
+        return delay
+    env_value = os.getenv("FETCH_DOMAIN_DELAY_SECONDS", "").strip()
+    if env_value:
+        return float(env_value)
+    return _DEFAULT_DOMAIN_DELAY_SECONDS
 
 
 @dataclass(frozen=True)
@@ -108,18 +124,35 @@ def fetch_article_from_pending(
     )
 
 
+def interleave_by_host(pending: list[PendingUrl]) -> list[PendingUrl]:
+    """Reordena para alternar hosts (round-robin), preservando conjunto e ordem por host."""
+    groups: dict[str, list[PendingUrl]] = {}
+    for record in pending:
+        groups.setdefault(url_host(record["url"]), []).append(record)
+
+    result: list[PendingUrl] = []
+    queues = list(groups.values())
+    while queues:
+        queues = [q for q in queues if q]
+        for q in queues:
+            result.append(q.pop(0))
+    return result
+
+
 def fetch_and_store_pending_urls(
     pending_urls: Iterable[PendingUrl],
     jobs_index: Mapping[str, Mapping[str, Any]],
     *,
     articles_path: Path | None = None,
     client: httpx.Client | None = None,
+    domain_delay: float | None = None,
 ) -> FetchArticlesStats:
     """
     Processa URLs pendentes, extrai texto e grava artigos novos.
 
     URLs cujo ``job_id`` não existir no índice são ignoradas (contadas em
-    ``urls_missing_job``).
+    ``urls_missing_job``). Acessos consecutivos ao mesmo host são espaçados
+    por ``domain_delay`` segundos.
     """
     urls_processed = 0
     urls_failed = 0
@@ -128,9 +161,12 @@ def fetch_and_store_pending_urls(
 
     owns_client = client is None
     http_client = client if client is not None else create_http_client()
+    delay = _resolve_domain_delay(domain_delay)
+    last_hit: dict[str, float] = {}
+    pending_list = interleave_by_host(list(pending_urls))
 
     try:
-        for pending in pending_urls:
+        for pending in pending_list:
             urls_processed += 1
             job_id = pending["job_id"]
             job = jobs_index.get(job_id)
@@ -139,6 +175,16 @@ def fetch_and_store_pending_urls(
                 urls_missing_job += 1
                 logger.error("Job não encontrado no índice: %s (url=%s)", job_id, pending["url"])
                 continue
+
+            host = url_host(pending["url"])
+            previous = last_hit.get(host)
+            if previous is not None:
+                elapsed = monotonic() - previous
+                remaining = delay - elapsed
+                if remaining > 0:
+                    logger.debug("Aguardando %.1fs antes de novo acesso a %s", remaining, host)
+                    time.sleep(remaining)
+            last_hit[host] = monotonic()
 
             logger.info("Extraindo artigo %d: %s", urls_processed, pending["url"])
             article = fetch_article_from_pending(pending, job, http_client)
