@@ -64,7 +64,8 @@ def build_serpapi_params(job: Mapping[str, Any]) -> dict[str, str]:
     )
 
     return {
-        "engine": "google_news",
+        "engine": "google",
+        "tbm": "nws",
         "q": query,
         "tbs": tbs,
         "gl": "br",

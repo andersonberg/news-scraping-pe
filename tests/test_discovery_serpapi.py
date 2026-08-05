@@ -26,7 +26,8 @@ def _sample_job() -> dict[str, Any]:
 def test_build_serpapi_params_from_job_fields() -> None:
     params = build_serpapi_params(_sample_job())
 
-    assert params["engine"] == "google_news"
+    assert params["engine"] == "google"
+    assert params["tbm"] == "nws"
     assert "site:ne10.uol.com.br" in params["q"]
     assert params["tbs"] == "cdr:1,cd_min:8/5/2022,cd_max:10/30/2022"
     assert params["gl"] == "br"
@@ -86,7 +87,8 @@ def test_fetch_search_results_raises_on_api_error() -> None:
 def test_discover_urls_for_job_with_mock_transport() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.params["api_key"] == "test-key"
-        assert request.url.params["engine"] == "google_news"
+        assert request.url.params["engine"] == "google"
+        assert request.url.params["tbm"] == "nws"
         return httpx.Response(
             200,
             json={"news_results": [{"link": "https://ne10.uol.com.br/artigo"}]},
