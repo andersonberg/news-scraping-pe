@@ -13,7 +13,7 @@ from news_scraping_pe.log import get_logger
 logger = get_logger(__name__)
 
 SERPAPI_SEARCH_URL = "https://serpapi.com/search.json"
-_DEFAULT_TIMEOUT_SECONDS = 30.0
+_DEFAULT_TIMEOUT_SECONDS = 60.0
 
 
 class SerpApiError(Exception):

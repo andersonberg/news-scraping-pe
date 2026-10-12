@@ -66,7 +66,7 @@ def discover_and_store_jobs(
     attempted_job_ids = load_attempted_job_ids(path=usage_log_path) if skip_attempted else set()
 
     owns_client = client is None
-    http_client = client if client is not None else httpx.Client(timeout=30.0)
+    http_client = client if client is not None else httpx.Client(timeout=60.0)
 
     try:
         for job in jobs:
